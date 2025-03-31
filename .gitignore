@@ -1,0 +1,9 @@
+# Virtual environment
+.venv/
+
+# Environment variable file
+.env
+
+# OS / Editor / Other generated
+__pycache__/
+*.pyc
