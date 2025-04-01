@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import re
 import time
@@ -13,41 +12,34 @@ from dotenv import load_dotenv
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import (
-    # 你依然可以导入相关的类型，比如:
     CallToolRequest,
     ListToolsRequest,
-    # 其余类型如有需要也可以导入
 )
 
-###############################################################################
-# 自定义异常类（如果原版 MCP 已移除 McpError / ErrorCode）
-###############################################################################
+
 class McpError(Exception):
     def __init__(self, code: int, message: str):
         super().__init__(f"[MCP Error {code}] {message}")
         self.code = code
         self.message = message
 
+
 class ErrorCode:
     MethodNotFound = -32601
     ConfigurationError = -32000
 
-###############################################################################
-# OutlookMailSearcher：查询指定主题、邮件正文中的验证码
-###############################################################################
-class OutlookMailSearcher:
-    def __init__(self, subject: str, code_length: int, logger, access_token: str, refresh_token: str):
-        self.subject = subject
-        self.code_length = code_length
+
+class OutlookMailFetcher:
+    def __init__(self, logger, access_token: str, refresh_token: str):
         self.logger = logger
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.client_id = os.getenv("CLIENT_ID")
         self.client_secret = os.getenv("CLIENT_SECRET")
 
-    def refresh_token(self):
+    def refresh_token_request(self):
         token_url = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-        refresh_response = httpx.post(token_url, data={
+        response = httpx.post(token_url, data={
             "grant_type": "refresh_token",
             "refresh_token": self.refresh_token,
             "client_id": self.client_id,
@@ -55,49 +47,55 @@ class OutlookMailSearcher:
             "redirect_uri": "https://login.microsoftonline.com/common/oauth2/nativeclient",
             "scope": "Mail.ReadBasic Mail.Read Mail.ReadWrite offline_access"
         })
-        new_access_token_data = refresh_response.json()
-        self.access_token = new_access_token_data.get("access_token")
+        data = response.json()
+        self.access_token = data.get("access_token")
 
-    def search_email_by_subject(self, max_attempts=6, wait_time=10):
-        url = "https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime DESC&$top=3"
+    def list_recent_emails(self, max_count=5, max_days=2):
+        """
+        Fetch at most 'max_count' recent emails within the last 'max_days' days.
+        Return a list of subjects.
+        """
+        url = "https://graph.microsoft.com/v1.0/me/messages?$orderby=receivedDateTime DESC&$top=20"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
 
-        for attempt in range(max_attempts):
-            time.sleep(wait_time)
-            headers = {"Authorization": f"Bearer {self.access_token}"}
+        # We'll do a few retries if token is invalid
+        attempts = 3
+        for attempt in range(attempts):
             response = httpx.get(url, headers=headers)
-
             if response.status_code == 401:
-                self.refresh_token()
+                self.refresh_token_request()
                 continue
 
             if response.status_code != 200:
-                self.logger("Failed to fetch emails")
-                continue
+                self.logger(f"Failed to fetch emails, status code={response.status_code}")
+                return []
 
             emails = response.json().get("value", [])
-            for email in emails:
-                # 匹配subject和bodyPreview不为空
-                if self.subject in email.get("subject", "") and email.get("bodyPreview", ""):
-                    email_date = email.get("receivedDateTime")
-                    if email_date:
-                        email_datetime = datetime.fromisoformat(email_date.rstrip('Z'))
-                        email_datetime = email_datetime.replace(tzinfo=pytz.utc)
-                        current_datetime = datetime.now(pytz.utc)
+            break
+        else:
+            # If we never broke out, means all attempts failed
+            self.logger("Unable to fetch emails after multiple attempts.")
+            return []
 
-                        time_diff = current_datetime - email_datetime
-                        if time_diff > timedelta(minutes=1):
-                            self.logger("Email is too old.")
-                            continue
+        result = []
+        now_utc = datetime.now(pytz.utc)
+        cutoff = now_utc - timedelta(days=max_days)
 
-                    html_content = email["body"]["content"]
-                    soup = BeautifulSoup(html_content, "html.parser")
-                    text = soup.get_text()
-                    codes = re.findall(rf"(?<!\d)\d{{{self.code_length}}}(?!\d)", text)
-                    if codes:
-                        return codes[0]
+        for email in emails:
+            # Filter out anything older than 'max_days' days
+            email_date_str = email.get("receivedDateTime")
+            if not email_date_str:
+                continue
+            email_dt = datetime.fromisoformat(email_date_str.rstrip("Z")).replace(tzinfo=pytz.utc)
+            if email_dt < cutoff:
+                continue
 
-        self.logger("Reached maximum attempts, no new email found.")
-        return None
+            subj = email.get("subject", "")
+            result.append(subj)
+            if len(result) >= max_count:
+                break
+
+        return result
 
 
 class OutlookMailServer:
@@ -115,35 +113,33 @@ class OutlookMailServer:
             }
         )
 
-        # 旧版 set_request_handler 改为直接对 request_handlers 赋值
+        # Register handlers
         self.server.request_handlers["tools/list"] = self.handle_list_tools
         self.server.request_handlers["tools/call"] = self.handle_call_tool
 
         self.server.onerror = lambda error: print(f"[MCP Error] {error}")
 
     async def handle_list_tools(self, request):
-        """
-        当客户端发来 method = "tools/list" 时，MCP会调用此函数
-        """
         return {
             "tools": [
                 {
-                    "name": "search_verification_code",
-                    "description": "Search for verification code in recent Outlook emails",
+                    "name": "list_recent_emails",
+                    "description": "Fetch recent email subjects within the last X days, up to Y messages",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
-                            "subject": {
-                                "type": "string",
-                                "description": "Email subject to search for"
-                            },
-                            "code_length": {
+                            "max_count": {
                                 "type": "integer",
-                                "description": "Length of the verification code",
-                                "default": 6
+                                "description": "Maximum number of emails to return",
+                                "default": 5
+                            },
+                            "max_days": {
+                                "type": "integer",
+                                "description": "How many days back to fetch",
+                                "default": 2
                             }
                         },
-                        "required": ["subject"]
+                        "required": []
                     }
                 }
             ]
@@ -151,19 +147,20 @@ class OutlookMailServer:
 
     async def handle_call_tool(self, request):
         """
-        当客户端发来 method = "tools/call" 时，MCP会调用此函数
+        Called when method == "tools/call".
+        We only define one tool: "list_recent_emails".
         """
-        name = request.params.get("name")  # 这里取决于你具体的请求结构
+        name = request.params.get("name")
         arguments = request.params.get("arguments", {})
 
-        if name != "search_verification_code":
+        if name != "list_recent_emails":
             raise McpError(
                 ErrorCode.MethodNotFound,
                 f"Unknown tool: {name}"
             )
 
-        subject = arguments.get("subject")
-        code_length = arguments.get("code_length", 6)
+        max_count = arguments.get("max_count", 5)
+        max_days = arguments.get("max_days", 2)
 
         access_token = os.getenv("ACCESS_TOKEN")
         refresh_token = os.getenv("REFRESH_TOKEN")
@@ -171,32 +168,35 @@ class OutlookMailServer:
         if not all([access_token, refresh_token]):
             raise McpError(
                 ErrorCode.ConfigurationError,
-                "Missing required environment variables: ACCESS_TOKEN and REFRESH_TOKEN"
+                "Missing environment variables: ACCESS_TOKEN and REFRESH_TOKEN"
             )
 
-        searcher = OutlookMailSearcher(
-            subject=subject,
-            code_length=code_length,
+        fetcher = OutlookMailFetcher(
             logger=print,
             access_token=access_token,
             refresh_token=refresh_token
         )
+        subjects = fetcher.list_recent_emails(
+            max_count=max_count,
+            max_days=max_days
+        )
 
-        code = searcher.search_email_by_subject()
+        if subjects:
+            text_output = "\n".join(subjects)
+        else:
+            text_output = "No recent emails found."
 
-        # 返回内容
         return {
             "content": [
                 {
                     "type": "text",
-                    "text": code if code else "No verification code found"
+                    "text": text_output
                 }
             ]
         }
 
     async def run(self):
         async with stdio_server() as (read_stream, write_stream):
-            # 也可以传 None（如果 MCP 允许）
             await self.server.run(read_stream, write_stream, initialization_options=None)
 
 
