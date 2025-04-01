@@ -1,5 +1,5 @@
 [project]
-name = "outlook-mailer"
+name = "mcp_server_outlook"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -10,4 +10,5 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "beautifulsoup4>=4.12.0",
     "pytz>=2024.1",
+    "fastmcp>=0.4.1",
 ]
