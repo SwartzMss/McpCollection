@@ -7,12 +7,11 @@
 
 ## 目录
 
-1. [Outlook Mailer](#outlook-mailer)
-
+1. [mcp_server_outlook](#mcp_server_outlook)
 
 ---
 
-## Outlook Mailer
+## mcp_server_outlook
 通过 [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/) 获取 Outlook 邮件的主题信息。  
-请参阅 [outlook_mailer 目录下的 README](outlook_mailer/README.md)。  
+请参阅 [mcp_server_outlook 目录下的 README](mcp_server_outlook/README.md)。  
 

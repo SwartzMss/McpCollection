@@ -36,11 +36,16 @@
     REFRESH_TOKEN=yourrefreshtoken
     ```
 3. **安装运行** 
-
+- 运行模式(第一次先以运行模式，安装各种依赖性):
+    ```bash   
+    uv run main.py
+    ```
 - 调试模式:
     ```bash
+    source .venv/Scripts/activate
     mcp dev main.py
     ```
+
 
 ## 使用说明
 由于该 MCP 服务器使用 STDIN / STDOUT 进行 JSON-RPC 通信，你需要使用 MCP 兼容的客户端才能与之进行交互。大致流程如下：
