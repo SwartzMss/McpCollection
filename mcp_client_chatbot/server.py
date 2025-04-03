@@ -20,11 +20,7 @@ class Server:
 
     async def initialize(self) -> None:
         """Initialize the server connection."""
-        command = (
-            shutil.which("npx")
-            if self.config["command"] == "npx"
-            else self.config["command"]
-        )
+        command = shutil.which(self.config["command"]) or self.config["command"]
         if command is None:
             raise ValueError("The command must be a valid string and cannot be None.")
 
