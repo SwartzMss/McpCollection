@@ -23,61 +23,66 @@ class ChatSession:
                 logging.warning(f"Warning during final cleanup: {e}")
 
     async def process_llm_response(self, llm_response: str) -> str:
-        if not isinstance(llm_response, str):
-            try:
-                llm_response = llm_response.content
-            except AttributeError:
-                llm_response = str(llm_response)
-        try:
-            tool_call = json.loads(llm_response)
-            if "tool" in tool_call and "arguments" in tool_call:
-                logging.info(f"Executing tool: {tool_call['tool']}")
-                logging.info(f"With arguments: {tool_call['arguments']}")
+        if hasattr(llm_response, "tool_calls") and llm_response.tool_calls:
+            for tool_call in llm_response.tool_calls:
+                tool_name = tool_call.function.name
+                #debug for print
+                logging.info(f"start calling tools: {tool_name}...")
+                try:
+                    tool_args = json.loads(tool_call.function.arguments)
+                except json.JSONDecodeError:
+                    tool_args = {}
                 for server in self.servers:
                     tools = await server.list_tools()
-                    if any(tool.name == tool_call["tool"] for tool in tools):
+                    if any(tool.name == tool_name for tool in tools):
                         try:
-                            result = await server.execute_tool(
-                                tool_call["tool"], tool_call["arguments"]
-                            )
-                            if isinstance(result, dict) and "progress" in result:
-                                progress = result["progress"]
-                                total = result["total"]
-                                percentage = (progress / total) * 100
-                                logging.info(
-                                    f"Progress: {progress}/{total} ({percentage:.1f}%)"
+                            result = await server.execute_tool(tool_name, tool_args)
+                            #debug for print
+                            logging.info(f"Tool {tool_name} executed successfully: {result}")
+                            if isinstance(result.content, list):
+                                content_str = "\n".join(
+                                    item.get("text", str(item)) for item in result.content if isinstance(item, dict)
                                 )
-                            return f"Tool execution result: {result}"
+                            else:
+                                content_str = str(result.content)
+                            tool_message = {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": content_str,      
+                            }
+                            return tool_message
                         except Exception as e:
-                            error_msg = f"Error executing tool: {str(e)}"
-                            logging.error(error_msg)
-                            return error_msg
+                                error_msg = f"Error executing tool: {str(e)}"
+                                logging.error(error_msg)
+                                return error_msg
                 return f"No server found with tool: {tool_call['tool']}"
-            return llm_response
-        except json.JSONDecodeError:
-            return llm_response
+        #debug for print
+        #logging.info(f"no need calling tools...")
+        return llm_response.content                
 
     async def start(self) -> None:
         """Main chat session handler."""
         try:
             for server in self.servers:
                 try:
+                    logging.info(f"Initializing MCP server: {server.name}...")
                     await server.initialize()
+                    logging.info(f"MCP server {server.name} initialized successfully.")
                 except Exception as e:
-                    logging.error(f"Failed to initialize server {server.name}: {e}")
+                    logging.error(f"Failed to initialize MCP server {server.name}: {e}")
                     await self.cleanup_servers()
                     return
 
             all_tools = []
             for server in self.servers:
                 tools = await server.list_tools()
-                print(f"Server: {server.name}")
-                for tool in tools:
-                    print(f"  Tool: {tool.name} - {tool.description}")              
+                # debug for print
+                # print(f"Server: {server.name}")
+                # for tool in tools:
+                #     print(f" * Tool: {tool.name} - {tool.description}")              
                 all_tools.extend(tools)
 
             available_tools = [tool.format_for_llm() for tool in all_tools]
-            tools_description = "\n".join([tool.format_for_llm() for tool in all_tools])
             system_message = (
                 "你是一名智能助手,请根据用户的问题选择合适的工具。若不需要使用工具，请直接回复"
             )
@@ -91,17 +96,19 @@ class ChatSession:
                         break
                     messages.append({"role": "user", "content": user_input})
                     llm_response = self.llm_client.get_response(messages,available_tools)
-                    logging.info("Assistant: %s", llm_response)
-                    result = await self.process_llm_response(llm_response)
+                    messages.append(llm_response)
 
-                    if result != llm_response:
-                        messages.append({"role": "assistant", "content": llm_response})
-                        messages.append({"role": "system", "content": str(result)})
-                        final_response = self.llm_client.get_response(messages)
-                        logging.info("\nFinal response: %s", final_response)
-                        messages.append({"role": "assistant", "content": final_response})
+                    # debug for print
+                    logging.info("API Direct Response: %s", llm_response)
+                    tool_message = await self.process_llm_response(llm_response)
+
+                    if tool_message != llm_response.content:
+                        messages.append(tool_message)
+                        llm_response = self.llm_client.get_response(messages)
+                        messages.append(llm_response)
+                        logging.info("Answer: %s", llm_response.content)
                     else:
-                        messages.append({"role": "assistant", "content": llm_response})
+                        logging.info("Answer: %s", llm_response.content)
                 except KeyboardInterrupt:
                     logging.info("\nExiting...")
                     break
