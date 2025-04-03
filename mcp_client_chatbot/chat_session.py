@@ -64,13 +64,16 @@ class ChatSession:
                 try:
                     await server.initialize()
                 except Exception as e:
-                    logging.error(f"Failed to initialize server: {e}")
+                    logging.error(f"Failed to initialize server {server.name}: {e}")
                     await self.cleanup_servers()
                     return
 
             all_tools = []
             for server in self.servers:
                 tools = await server.list_tools()
+                print(f"Server: {server.name}")
+                for tool in tools:
+                    print(f"  Tool: {tool.name} - {tool.description}")              
                 all_tools.extend(tools)
 
             tools_description = "\n".join([tool.format_for_llm() for tool in all_tools])
