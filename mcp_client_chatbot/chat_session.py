@@ -76,27 +76,10 @@ class ChatSession:
                     print(f"  Tool: {tool.name} - {tool.description}")              
                 all_tools.extend(tools)
 
+            available_tools = [tool.format_for_llm() for tool in all_tools]
             tools_description = "\n".join([tool.format_for_llm() for tool in all_tools])
             system_message = (
-                "You are a helpful assistant with access to these tools:\n\n"
-                f"{tools_description}\n"
-                "Choose the appropriate tool based on the user's question. "
-                "If no tool is needed, reply directly.\n\n"
-                "IMPORTANT: When you need to use a tool, you must ONLY respond with "
-                "the exact JSON object format below, nothing else:\n"
-                "{\n"
-                '    "tool": "tool-name",\n'
-                '    "arguments": {\n'
-                '        "argument-name": "value"\n'
-                "    }\n"
-                "}\n\n"
-                "After receiving a tool's response:\n"
-                "1. Transform the raw data into a natural, conversational response\n"
-                "2. Keep responses concise but informative\n"
-                "3. Focus on the most relevant information\n"
-                "4. Use appropriate context from the user's question\n"
-                "5. Avoid simply repeating the raw data\n\n"
-                "Please use only the tools that are explicitly defined above."
+                "你是一名智能助手,请根据用户的问题选择合适的工具。若不需要使用工具，请直接回复"
             )
             messages = [{"role": "system", "content": system_message}]
 
@@ -107,7 +90,7 @@ class ChatSession:
                         logging.info("\nExiting...")
                         break
                     messages.append({"role": "user", "content": user_input})
-                    llm_response = self.llm_client.get_response(messages)
+                    llm_response = self.llm_client.get_response(messages,available_tools)
                     logging.info("Assistant: %s", llm_response)
                     result = await self.process_llm_response(llm_response)
 
