@@ -91,7 +91,7 @@ class ChatSession:
                         break
                     messages.append({"role": "user", "content": user_input})
                     llm_response = self.llm_client.get_response(messages,available_tools)
-                    logging.info("Assistant: %s", llm_response)
+                    logging.info("API Direct Response: %s", llm_response.choices[0].message)
                     result = await self.process_llm_response(llm_response)
 
                     if result != llm_response:
