@@ -74,6 +74,18 @@ class ChatSession:
         #logging.info(f"no need calling tools...")
         return llm_response.content                
 
+    async def get_final_response(self, messages, available_tools):
+        llm_response = self.llm_client.get_response(messages, available_tools)
+        messages.append(llm_response)
+        logging.info("API Direct Response: %s", llm_response)
+
+        tool_message = await self.process_llm_response(llm_response)
+        if tool_message != llm_response.content and isinstance(tool_message, list) and tool_message:
+            messages.extend(tool_message)
+            return await self.get_final_response(messages, available_tools)
+        else:
+            return llm_response
+
     async def start(self) -> None:
         """Main chat session handler."""
         try:
@@ -109,22 +121,9 @@ class ChatSession:
                         logging.info("\nExiting...")
                         break
                     messages.append({"role": "user", "content": user_input})
-                    llm_response = self.llm_client.get_response(messages,available_tools)
-                    messages.append(llm_response)
-
-                    # debug for print
-                    logging.info("API Direct Response: %s", llm_response)
-                    tool_message = await self.process_llm_response(llm_response)
-
-                    if tool_message != llm_response.content and isinstance(tool_message, list) and tool_message:
-                        messages.extend(tool_message)
-                        llm_response = self.llm_client.get_response(messages)
-                        # debug for print
-                        logging.info("API Direct Response: %s", llm_response)
-                        messages.append(llm_response)
-                        logging.info("Answer: %s", llm_response.content)
-                    else:
-                        logging.info("Answer: %s", llm_response.content)
+                    
+                    final_response = await self.get_final_response(messages, available_tools)
+                    logging.info("Answer: %s", final_response.content)
                 except KeyboardInterrupt:
                     logging.info("\nExiting...")
                     break
