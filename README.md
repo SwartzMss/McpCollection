@@ -18,6 +18,6 @@
 
 ## mcp_client_chatbot 
 主要用于与大语言模型 (LLM) 进行交互，并通过调用各种工具 (Tool) 完成任务。
-具体信息查看[README](mcp_client_chatbot/README.md)。 
+具体信息查看[README](mcp_client_chatbot/README.md)。  
 [点击观看项目介绍视频](https://www.bilibili.com/video/BV1XVZUYrELX)
 
