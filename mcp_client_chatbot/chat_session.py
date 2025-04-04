@@ -22,8 +22,9 @@ class ChatSession:
             except Exception as e:
                 logging.warning(f"Warning during final cleanup: {e}")
 
-    async def process_llm_response(self, llm_response: str) -> str:
+    async def process_llm_response(self, llm_response: str) -> str:    
         if hasattr(llm_response, "tool_calls") and llm_response.tool_calls:
+            tool_messages = []
             for tool_call in llm_response.tool_calls:
                 tool_name = tool_call.function.name
                 #debug for print
@@ -32,30 +33,43 @@ class ChatSession:
                     tool_args = json.loads(tool_call.function.arguments)
                 except json.JSONDecodeError:
                     tool_args = {}
+                found = False
                 for server in self.servers:
                     tools = await server.list_tools()
                     if any(tool.name == tool_name for tool in tools):
+                        found = True
                         try:
                             result = await server.execute_tool(tool_name, tool_args)
                             #debug for print
                             logging.info(f"Tool {tool_name} executed successfully: {result}")
                             if isinstance(result.content, list):
                                 content_str = "\n".join(
-                                    item.get("text", str(item)) for item in result.content if isinstance(item, dict)
+                                    item.get("text") if isinstance(item, dict) and "text" in item else str(item)
+                                    for item in result.content
                                 )
                             else:
                                 content_str = str(result.content)
+                            logging.info(f"Tool {content_str}")
                             tool_message = {
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
                                 "content": content_str,      
                             }
-                            return tool_message
+                            tool_messages.append(tool_message)
                         except Exception as e:
                                 error_msg = f"Error executing tool: {str(e)}"
                                 logging.error(error_msg)
                                 return error_msg
-                return f"No server found with tool: {tool_call['tool']}"
+                        break
+                if not found:
+                    error_message = f"No server found with tool: {tool_name}"
+                    logging.error(error_message)
+                    tool_messages.append({
+                        "role": "error",
+                        "tool_call_id": tool_call.id,
+                        "content": error_message
+                    })
+            return tool_messages
         #debug for print
         #logging.info(f"no need calling tools...")
         return llm_response.content                
@@ -102,9 +116,11 @@ class ChatSession:
                     logging.info("API Direct Response: %s", llm_response)
                     tool_message = await self.process_llm_response(llm_response)
 
-                    if tool_message != llm_response.content:
-                        messages.append(tool_message)
+                    if tool_message != llm_response.content and isinstance(tool_message, list) and tool_message:
+                        messages.extend(tool_message)
                         llm_response = self.llm_client.get_response(messages)
+                        # debug for print
+                        logging.info("API Direct Response: %s", llm_response)
                         messages.append(llm_response)
                         logging.info("Answer: %s", llm_response.content)
                     else:
