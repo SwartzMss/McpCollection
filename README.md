@@ -1,5 +1,5 @@
 # MCP Collection
-[![Render PlantUML Diagrams](https://github.com/SwartzMss/McpCollection/blob/main/.github/workflows/plantuml-render.yml/badge.svg)](https://github.com/SwartzMss/McpCollection/blob/main/.github/workflows/plantuml-render.yml)
+[![Render PlantUML Diagrams](https://github.com/SwartzMss/McpCollection/actions/workflows/plantuml-render.yml/badge.svg)](https://github.com/SwartzMss/McpCollection/actions/workflows/plantuml-render.yml)
 
 
 这是一个 MCP（Model Context Protocol）相关的项目集合仓库，包含多个子项目。  
