@@ -8,10 +8,16 @@
 ## 目录
 
 1. [mcp_server_outlook](#mcp_server_outlook)
+2. [mcp_client_chatbot](#mcp_client_chatbot)
 
 ---
 
 ## mcp_server_outlook
-通过 [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/) 获取 Outlook 邮件的主题信息。  
-请参阅 [mcp_server_outlook 目录下的 README](mcp_server_outlook/README.md)。  
+通过 [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/) 获取 Outlook 邮件的主题信息。具体信息查看[README](mcp_server_outlook/README.md)。  
+
+
+## mcp_client_chatbot 
+主要用于与大语言模型 (LLM) 进行交互，并通过调用各种工具 (Tool) 完成任务。
+具体信息查看[README](mcp_client_chatbot/README.md)。
+[点击观看项目介绍视频](https://www.bilibili.com/video/BV1XVZUYrELX)
 
