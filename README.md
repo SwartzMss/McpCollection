@@ -23,3 +23,6 @@
 具体信息查看[README](mcp_client_chatbot/README.md)。  
 [点击观看项目介绍视频](https://www.bilibili.com/video/BV1XVZUYrELX)
 
+## 许可
+
+本项目采用 [MIT 许可](LICENSE)。
