@@ -1,0 +1,19 @@
+@startuml
+start
+:用户输入;
+:ChatSession;
+:LLMClient 向 LLM 发起请求;
+:LLM 返回响应;
+if (响应中是否包含工具调用?) then (是)
+  :ChatSession 解析工具调用;
+  :查找对应 Server;
+  :Server 执行工具;
+  :返回工具执行结果;
+  :ChatSession 将结果发送给 LLM;
+  :LLM 返回最终答案;
+else (否)
+  :直接返回答案;
+endif
+:输出答案给用户;
+stop
+@enduml
