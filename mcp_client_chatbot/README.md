@@ -23,7 +23,7 @@
 MCP Client 是一个智能对话客户端，支持与 LLM 的深度交互。系统能够根据用户输入自动选择和调用合适的工具，通过 MCP 服务器完成工具执行，并将执行结果反馈给用户，实现全自动化的交互体验。
 
 ## 系统架构和工作流程
-![系统 UML](diagrams/output/mcp_client_chatbot.svg)
+![系统 UML](../diagrams/output/mcp_client_chatbot.svg)
 
 ## 工作流程说明
 
