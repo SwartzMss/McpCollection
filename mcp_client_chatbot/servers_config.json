@@ -4,6 +4,10 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem",
       "E:/"]
+    },
+    "outlook": {
+      "command": "uv",
+      "args": ["run", "../mcp_server_outlook/main.py"]
     }
   }
 }

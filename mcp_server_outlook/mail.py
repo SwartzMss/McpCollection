@@ -71,20 +71,6 @@ class OutlookMailFetcher:
                 filtered_emails.append(email)
         return filtered_emails
 
-    def filter_emails_by_number(self, max_count=5):
-        """
-        获取邮件主题列表，以编号形式返回。
-        参数：
-        - max_count: 返回邮件的最大数量。
-        """
-        emails = self.fetch_emails()
-        result = []
-        for index, email in enumerate(emails):
-            subj = email.get("subject", "")
-            result.append(f"{index+1}. {subj}")
-            if len(result) >= max_count:
-                break
-        return "\n".join(result)
 
     def send_email(self, recipients: list, subject: str, content: str, content_type: str = "Text"):
         """
@@ -124,3 +110,27 @@ class OutlookMailFetcher:
                 self.logger(f"Failed to send email, status code={response.status_code}, response: {response.text}")
                 return False
         return False
+
+    def delete_email(self, email_id: str) -> bool:
+        """
+        删除指定 id 的邮件。
+        
+        参数：
+        - email_id: 要删除邮件的完整 id
+        返回值：
+        - True 表示删除成功，False 表示删除失败
+        """
+        url = f"https://graph.microsoft.com/v1.0/me/messages/{email_id}"
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        response = httpx.delete(url, headers=headers)
+        if response.status_code == 204:
+            return True
+        elif response.status_code == 401:
+            # 如果未授权，刷新 token 后重试
+            self.refresh_token_request()
+            headers = {"Authorization": f"Bearer {self.access_token}"}
+            response = httpx.delete(url, headers=headers)
+            return response.status_code == 204
+        else:
+            self.logger(f"Failed to delete email, status code={response.status_code}, response: {response.text}")
+            return False
