@@ -1,16 +1,44 @@
 # Outlook Mail MCP 服务器
 
-该项目实现了一个简单的 MCP（Model Context Protocol）服务器，用于在用户请求时从 Outlook 上获取近期邮件（仅返回邮件主题）。它基于 [Microsoft Graph API](https://docs.microsoft.com/en-us/graph/) 实现。
+该项目实现了一个基于 MCP（Model Context Protocol）的服务器，用于通过 Microsoft Graph API 操作 Outlook 邮件。服务器通过 JSON-RPC 协议（使用 STDIN/STDOUT 通信）暴露了一系列工具，方便用户查询、管理和发送邮件
 
-## 功能
+## 功能概述
 
-1. **列出工具 (List Tools)**  
-   服务器对外暴露了一个 `list_recent_emails` 工具，用于获取最近若干天内的邮件主题。
+服务器提供的主要工具包括：
 
-2. **获取最近邮件**  
-   当调用 `list_recent_emails` 工具时，可以指定：
-   - `max_count`（默认 5）：最大邮件条数  
-   - `max_days`（默认 2）：向前追溯的天数  
+- **get_email_by_subject**  
+  根据邮件主题查询邮件内容。  
+  **参数：**  
+  - `subject`（字符串）：待查询的邮件主题。  
+  - `count`（整数，默认值 1）：返回匹配邮件的数量（返回最新的几封邮件）。
+
+- **get_email_by_id**  
+  根据邮件的完整 `email_id` 获取邮件详细内容。  
+  **参数：**  
+  - `email_id`（字符串）：邮件的唯一标识。
+
+- **list_recent_emails_by_number**  
+  获取近期邮件主题列表（以编号形式返回），便于用户快速浏览。  
+  **参数：**  
+  - `max_count`（整数，默认值 5，取值范围 1~50）：返回的邮件数量。
+
+- **list_recent_emails_by_time**  
+  根据时间范围获取近期邮件主题列表（以编号形式返回）。  
+  **参数：**  
+  - `max_days`（整数，默认值 2，取值范围 1~30）：查询最近多少天内的邮件。
+
+- **delete_email_by_id**  
+  根据邮件的 `email_id` 删除指定邮件。  
+  **参数：**  
+  - `email_id`（字符串）：待删除邮件的唯一标识。
+
+- **send_email**  
+  发送邮件到指定收件人。  
+  **参数：**  
+  - `recipients`（字符串）：多个收件人邮箱地址，逗号分隔。  
+  - `subject`（字符串）：邮件主题。  
+  - `content`（字符串）：邮件正文内容。  
+  - `content_type`（字符串，默认 "Text"，可选 "HTML"）：邮件内容类型。
 
 ## 运行环境
 
@@ -46,10 +74,10 @@
     mcp dev main.py
     ```
 
-
 ## 使用说明
 由于该 MCP 服务器使用 STDIN / STDOUT 进行 JSON-RPC 通信，你需要使用 MCP 兼容的客户端才能与之进行交互。大致流程如下：
-1. **客户端 发送请求, 用于列出可用的工具**  
+1. **用于列出可用的工具**
+    客户端发送请求：
     ```json
     {
     "jsonrpc": "2.0",
@@ -57,66 +85,25 @@
     "method": "tools/list"
     }
     ```
-2. **服务器 响应**  
+    服务器返回所有工具的名称、描述及参数信息
+   
+2. **调用具体工具**
+- 按主题查询邮件：
     ```json
     {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "result": {
-            "tools": [
-            {
-                "name": "list_recent_emails",
-                "description": "Fetch recent email subjects ...",
-                "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "max_count": {
-                    "type": "integer",
-                    "description": "Maximum number of emails to return",
-                    "default": 5
-                    },
-                    "max_days": {
-                    "type": "integer",
-                    "description": "How many days back to fetch",
-                    "default": 2
-                    }
-                }
-                }
-            }
-            ]
+      "jsonrpc": "2.0",
+      "id": 2,
+      "method": "tools/call",
+      "params": {
+        "name": "get_email_by_subject",
+        "arguments": {
+          "subject": "会议通知",
+          "count": 1
         }
+      }
     }
     ```
-    3. **客户端 调用工具**  
-    ```json
-    {
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/call",
-        "params": {
-            "name": "list_recent_emails",
-            "arguments": {
-            "max_count": 5,
-            "max_days": 2
-            }
-        }
-    }
-    ```
-    4. **服务器 返回邮件主题**  
-    ```json
-    {
-        "jsonrpc": "2.0",
-        "id": 2,
-        "result": {
-            "content": [
-            {
-                "type": "text",
-                "text": "Subject1\nSubject2\nSubject3"
-            }
-            ]
-        }
-    }
-    ```
+
 
 ## 其他注意事项
 - 服务器需要在 .env 中读取 ACCESS_TOKEN、REFRESH_TOKEN、CLIENT_ID、CLIENT_SECRET 等环境变量，并使用它们对 Microsoft Graph 进行身份认证。
