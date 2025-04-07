@@ -61,6 +61,33 @@ def get_email_by_subject(subject: str) -> str:
         return f"Error: {str(e)}"
 
 @mcp.tool()
+def reply_email(email_id: str, comment: str) -> str:
+    """
+    根据邮件 id 回复邮件。
+    
+    参数：
+      - email_id: 要回复的邮件 id。
+      - comment: 回复的正文内容。
+    
+    返回：
+      回复结果的反馈信息。
+    """
+    fetcher = OutlookMailFetcher(
+        logger=logger,
+        access_token=os.getenv("ACCESS_TOKEN"),
+        refresh_token=os.getenv("REFRESH_TOKEN")
+    )
+    try:
+        result = fetcher.reply_email(email_id, comment)
+        if result:
+            return f"Email with id {email_id} replied successfully."
+        else:
+            return f"Failed to reply email with id {email_id}."
+    except Exception as e:
+        logger.exception("Tool execution failed")
+        return f"Error: {str(e)}"
+
+@mcp.tool()
 def get_email_by_id(email_id: str) -> str:
     """
     根据邮件的完整 email_id 获取邮件详细内容。
