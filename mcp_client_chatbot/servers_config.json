@@ -8,6 +8,13 @@
     "outlook": {
       "command": "uv",
       "args": ["run", "../mcp_server_outlook/main.py"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
     }
   }
 }
