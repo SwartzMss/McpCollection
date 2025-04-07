@@ -55,6 +55,36 @@ class OutlookMailFetcher:
         self.logger.error("Unable to fetch emails after multiple attempts.")
         return []
 
+    def reply_email(self, email_id: str, comment: str) -> bool:
+        """
+        回复指定邮件。
+        
+        参数：
+        - email_id: 要回复邮件的 id。
+        - comment: 回复的正文内容。
+        
+        返回值：
+        - True 表示回复成功，False 表示回复失败。
+        """
+        url = f"https://graph.microsoft.com/v1.0/me/messages/{email_id}/reply"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        mail_data = {"comment": comment}
+        attempts = 3
+        for attempt in range(attempts):
+            response = httpx.post(url, headers=headers, json=mail_data)
+            if response.status_code == 401:
+                self.refresh_token_request()
+                continue
+            if response.status_code in (200, 202):
+                return True
+            else:
+                self.logger(f"Failed to reply email, status code={response.status_code}, response: {response.text}")
+                return False
+        return False
+
     def filter_emails_by_time(self, emails, max_days=2):
         """
         根据 max_days 参数过滤出最近 max_days 天内的邮件。
