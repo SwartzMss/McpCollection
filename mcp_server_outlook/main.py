@@ -1,9 +1,11 @@
 from mcp.server.fastmcp import FastMCP
 import os
 import logging
+import re
+import httpx
 from dotenv import load_dotenv
 from mail import OutlookMailFetcher
-
+from bs4 import BeautifulSoup
 # Load environment variables
 load_dotenv()
 
@@ -19,18 +21,16 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-def get_email_by_subject(subject: str, count: int = 1) -> str:
+def get_email_by_subject(subject: str) -> str:
     """
     根据邮件主题查询邮件内容。
-    
+
     参数：
-      - subject: 邮件主题（字符串）
-      - count: 返回匹配邮件的数量，默认为 1（即只返回最新的一封，如果存在重复）
-      
+      - subject: 邮件主题（字符串）如果存在重复的主题，则返回最新的一封邮件。
+
     返回值：
-      返回查询到的邮件内容，如果有多封邮件，则用两个换行符分隔。
+      返回查询到的邮件内容。
     """
-    count = max(1, count)
     fetcher = OutlookMailFetcher(
         logger=logger,
         access_token=os.getenv("ACCESS_TOKEN"),
@@ -39,21 +39,23 @@ def get_email_by_subject(subject: str, count: int = 1) -> str:
     try:
         # 获取最近的 50 封邮件
         emails = fetcher.fetch_emails()
-        # 筛选出主题完全匹配的邮件
-        matching_emails = [email for email in emails if email.get("subject", "") == subject]
-        if not matching_emails:
+        # 根据接收时间降序排序后，查找第一个主题匹配的邮件
+        latest_email = next(
+            (email for email in sorted(emails, key=lambda e: e.get("receivedDateTime", ""), reverse=True)
+             if email.get("subject", "") == subject),
+            None
+        )
+        if not latest_email:
             return f"No matching emails found for subject: {subject}"
-        # 根据收到时间降序排序（默认 fetch_emails 已排序，但这里额外排序以防万一）
-        matching_emails.sort(key=lambda email: email.get("receivedDateTime", ""), reverse=True)
-        # 取出前 count 封邮件
-        matching_emails = matching_emails[:count]
-        result_list = []
-        for email in matching_emails:
-            subj = email.get("subject", "")
-            # 获取完整的邮件内容，通常在 body 字段的 content 子字段中
-            content = email.get("body", {}).get("content", "")
-            result_list.append(f"Subject: {subj}\nContent:\n{content}")
-        return "\n\n".join(result_list)
+        
+        subj = latest_email.get("subject", "No Subject")
+        content = latest_email.get("body", {}).get("content", "No Content")
+        content_type = latest_email.get("body", {}).get("contentType", "text")
+        if content_type.lower() == "html":
+            # 使用 BeautifulSoup 解析 HTML 并提取纯文本
+            content = BeautifulSoup(content, "html.parser").get_text()
+        content = re.sub(r'\n\s*\n+', '\n\n', content).strip()  
+        return f"Subject: {subj}\nContent:{content}"
     except Exception as e:
         logger.exception("Tool execution failed")
         return f"Error: {str(e)}"
@@ -82,9 +84,14 @@ def get_email_by_id(email_id: str) -> str:
             email = response.json()
             subject = email.get("subject", "No Subject")
             content = email.get("body", {}).get("content", "No Content")
+            content_type = email.get("body", {}).get("contentType", "text")
+            if content_type.lower() == "html":
+                # 将 HTML 转换为纯文本
+                content = BeautifulSoup(content, "html.parser").get_text()
+            content = re.sub(r'\n\s*\n+', '\n\n', content).strip()  
             return (
                 f"Subject: {subject}\n"
-                f"Content:\n{content}"
+                f"Content:{content}"
             )
         else:
             return (

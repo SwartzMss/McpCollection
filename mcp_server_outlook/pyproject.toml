@@ -11,4 +11,5 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "pytz>=2024.1",
     "fastmcp>=0.4.1",
+    "bs4>=0.0.2",
 ]

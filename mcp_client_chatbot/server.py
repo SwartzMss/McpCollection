@@ -53,6 +53,8 @@ class Server:
         for item in tools_response:
             if isinstance(item, tuple) and item[0] == "tools":
                 for tool in item[1]:
+                    #debug for print
+                    #logging.info(f"tool.name {tool.name}...")
                     tools.append(Tool(tool.name, tool.description, tool.inputSchema))
         return tools
 
