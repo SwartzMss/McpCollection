@@ -1,9 +1,8 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem",
-      "E:/"]
+    "localSearch": {
+      "command": "uv",
+      "args": ["run", "../mcp_server_localsearch/main.py"]
     },
     "outlook": {
       "command": "uv",

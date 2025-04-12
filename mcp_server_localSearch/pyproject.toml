@@ -1,0 +1,12 @@
+[project]
+name = "mcp-server-localsearch"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.6.0",
+    "psutil>=7.0.0",
+]

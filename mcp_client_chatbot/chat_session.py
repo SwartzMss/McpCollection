@@ -49,7 +49,7 @@ class ChatSession:
                                 )
                             else:
                                 content_str = str(result.content)
-                            logging.info(f"Tool {content_str}")
+                            #logging.info(f"Tool {content_str}")
                             tool_message = {
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
