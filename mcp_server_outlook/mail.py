@@ -31,9 +31,9 @@ class OutlookMailFetcher:
         dotenv_path = find_dotenv()
         if dotenv_path:
             set_key(dotenv_path, "ACCESS_TOKEN", new_token)
-            self.logger("ACCESS_TOKEN has been updated in the .env file.")
+            self.logger.info("ACCESS_TOKEN has been updated in the .env file.")
         else:
-            self.logger("Could not locate the .env file. ACCESS_TOKEN update failed.")
+            self.logger.error("Could not locate the .env file. ACCESS_TOKEN update failed.")
 
     def fetch_emails(self):
         """

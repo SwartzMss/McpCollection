@@ -6,6 +6,8 @@ import httpx
 from dotenv import load_dotenv
 from mail import OutlookMailFetcher
 from bs4 import BeautifulSoup
+from datetime import datetime
+import pytz
 # Load environment variables
 load_dotenv()
 
@@ -151,6 +153,11 @@ def list_recent_emails_by_number(max_count: int = 5) -> str:
         for index, email in enumerate(emails):
             subj = email.get("subject", "")
             received_time_str = email.get("receivedDateTime", "")
+            if received_time_str:
+                # 将 UTC 时间转换为本地时间
+                utc_time = datetime.fromisoformat(received_time_str.rstrip("Z")).replace(tzinfo=pytz.UTC)
+                local_time = utc_time.astimezone(pytz.timezone('Asia/Shanghai'))
+                received_time_str = local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
             sender_info = email.get("sender", {}).get("emailAddress", {})
             email_id = email.get("id", "")
             sender_address = sender_info.get("address", "Unknown Email")
@@ -219,6 +226,11 @@ def list_recent_emails_by_time(max_days: int = 2) -> str:
         for index, email in enumerate(recent_emails):
             subject = email.get("subject", "")
             received_time_str = email.get("receivedDateTime", "")
+            if received_time_str:
+                # 将 UTC 时间转换为本地时间
+                utc_time = datetime.fromisoformat(received_time_str.rstrip("Z")).replace(tzinfo=pytz.UTC)
+                local_time = utc_time.astimezone(pytz.timezone('Asia/Shanghai'))
+                received_time_str = local_time.strftime("%Y-%m-%d %H:%M:%S %Z")
             email_id = email.get("id", "")
             sender_info = email.get("sender", {}).get("emailAddress", {})
             sender_address = sender_info.get("address", "Unknown Email")

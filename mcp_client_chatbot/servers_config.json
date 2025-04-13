@@ -8,6 +8,10 @@
       "command": "uv",
       "args": ["run", "../mcp_server_outlook/main.py"]
     },
+    "fileSystem": {
+      "command": "uv",
+      "args": ["run", "../mcp_server_filesystem/main.py"]
+    },
     "memory": {
       "command": "npx",
       "args": [
